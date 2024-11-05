@@ -38,7 +38,7 @@ The MathSuccess dataset consists of approximately 2600 rows with the following c
 
 ## Algorithms Used
 The following machine learning algorithms were implemented:
-1. **CART (Classification and Regression Trees)**
+1. **CTree (Classification and Regression Trees)**
 2. **RPart (Recursive Partitioning)**
 3. **Support Vector Machine (SVM)**
 4. **Random Forest**
