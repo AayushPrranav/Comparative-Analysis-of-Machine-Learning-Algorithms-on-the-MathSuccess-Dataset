@@ -1,7 +1,3 @@
-Here’s a template for your README page that you can use for your GitHub project. You can modify it as needed to fit your specific project details.
-
----
-
 # MathSuccess Dataset Analysis
 
 ## Overview
