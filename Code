@@ -1,0 +1,191 @@
+# Load the dataset and view its contents
+math_data <- read.csv(file.choose(), stringsAsFactors = FALSE)
+View(math_data)
+
+# Create a copy of the data and filter out rows with NA in CourseSuccess
+math1 <- math_data
+math1 <- math_data %>% filter(!is.na(math_data$CourseSuccess))
+View(math1)
+
+# Check for NA values in CourseSuccess
+table(is.na(math1$CourseSuccess))
+
+# Replace all NA values with 0
+math1[is.na(math1)] <- 0
+
+# Remove the first two columns (if not needed)
+math1 <- math1[, -c(1, 2)]
+
+# Convert relevant columns to factors for classification
+math1$CourseSuccess <- factor(math1$CourseSuccess)
+math1$Recommends <- factor(math1$Recommends)
+math1$Grade <- factor(math1$Grade)
+
+# View distribution of Grades
+table(math1$Grade)
+
+# Check the structure of the data
+str(math1)
+View(math1)
+
+# Load necessary library for data splitting
+library(caTools)
+
+# Set a seed for reproducibility and split the data into training and test sets
+set.seed(123)
+pd <- sample.split(math1$CourseSuccess, SplitRatio = 0.8)
+
+# Create training and test datasets
+math_train <- math1[pd == TRUE, ]
+math_test <- math1[pd == FALSE, ]
+
+####### 
+# Classification Tree (ctree)
+library(party)
+
+# Build the ctree model
+model_1 <- ctree(CourseSuccess ~ ., data = math_train, controls = ctree_control(mincriterion = 0.9, minsplit = 200))
+model_1
+plot(model_1)  # Plot the classification tree
+
+# Make predictions on the test set
+pred_1 <- predict(model_1, math_test)
+pred_1
+
+# Generate confusion matrix for ctree model
+table(pred_1, math_test$CourseSuccess)
+
+####### 
+# Recursive Partitioning (rpart)
+library(rpart)
+
+# Build the rpart model
+model_2 <- rpart(CourseSuccess ~ ., data = math_train, method = "class")
+model_2
+
+# Plot the rpart model
+library(rpart.plot)
+rpart.plot(model_2)
+
+# Make predictions on the test set
+pred_2 <- predict(model_2, math_test)
+pred_2
+
+# Convert probabilities to binary predictions
+predictions_binary <- apply(pred_2, 1, function(row) {
+  colnames(pred_2)[which.max(row)]
+})
+predictions_binary_numeric <- as.numeric(predictions_binary)
+
+# Generate confusion matrix for rpart model
+table(predictions_binary_numeric, math_test$CourseSuccess)
+
+######## 
+# Support Vector Machine (SVM)
+library(e1071)
+
+# Build the SVM model
+model_3 <- svm(CourseSuccess ~ ., data = math_train)
+model_3
+
+# Make predictions on the test set
+pred_3 <- predict(model_3, math_test)
+pred_3
+
+# Generate confusion matrix for SVM model
+table(pred_3, math_test$CourseSuccess)
+
+########## 
+# Random Forest
+library(randomForest)
+
+# Build the Random Forest model
+model_4 <- randomForest(CourseSuccess ~ ., data = math_train)
+model_4
+
+# Make predictions on the test set
+pred_4 <- predict(model_4, math_test)
+pred_4
+
+# Generate confusion matrix for Random Forest model
+table(pred_4, math_test$CourseSuccess)
+
+############ 
+# Neural Network
+install.packages("nnet")  # Install nnet package if not already installed
+library(nnet)
+
+# Build the neural network model
+model_nn <- nnet(CourseSuccess ~ ., data = math_train, size = 5, decay = 0.01, maxit = 200)
+model_nn
+
+# Make predictions on the test set
+pred_5 <- predict(model_nn, math_test)
+
+# Convert probabilities to binary predictions
+predicted_classes <- ifelse(pred_5 > 0.5, 1, 0)
+predicted_classes
+
+# Generate confusion matrix for Neural Network model
+table(predicted_classes, math_test$CourseSuccess)
+
+################################ 
+# Comparing Results of Different Models 
+
+# Create confusion matrices for each model
+confusion_matrix_1 <- table(pred_1, math_test$CourseSuccess)
+confusion_matrix_2 <- table(predictions_binary_numeric, math_test$CourseSuccess)
+confusion_matrix_3 <- table(pred_3, math_test$CourseSuccess)
+confusion_matrix_4 <- table(pred_4, math_test$CourseSuccess)
+confusion_matrix_5 <- table(predicted_classes, math_test$CourseSuccess)
+
+# Function to calculate performance metrics
+calculate_metrics <- function(confusion_matrix) {
+  TP <- confusion_matrix[2, 2] # True Positives
+  TN <- confusion_matrix[1, 1] # True Negatives
+  FP <- confusion_matrix[1, 2] # False Positives
+  FN <- confusion_matrix[2, 1] # False Negatives
+  
+  # Calculate accuracy
+  accuracy <- (TP + TN) / sum(confusion_matrix)
+  
+  # Calculate precision
+  precision <- ifelse((TP + FP) == 0, 0, TP / (TP + FP))
+  
+  # Calculate recall
+  recall <- ifelse((TP + FN) == 0, 0, TP / (TP + FN))
+  
+  # Calculate F1 Score
+  f1_score <- ifelse((precision + recall) == 0, 0, 
+                     2 * (precision * recall) / (precision + recall))
+  
+  # Calculate error rate
+  error_rate <- (FP + FN) / sum(confusion_matrix)
+  
+  return(c(accuracy = accuracy, precision = precision, recall = recall, f1_score = f1_score, error_rate = error_rate))
+}
+
+# Calculate metrics for each confusion matrix
+metrics_1 <- calculate_metrics(confusion_matrix_1)
+metrics_2 <- calculate_metrics(confusion_matrix_2)
+metrics_3 <- calculate_metrics(confusion_matrix_3)
+metrics_4 <- calculate_metrics(confusion_matrix_4)
+metrics_5 <- calculate_metrics(confusion_matrix_5)
+
+# Create a data frame to hold the results
+results_df <- data.frame(
+  Metric = c("Accuracy", "Precision", "Recall", "F1 Score", "Error Rate"),
+  C_Tree = metrics_1,
+  R_Part = metrics_2,
+  SVM = metrics_3,
+  Random_Forrest = metrics_4,
+  Neural_Network = metrics_5
+)
+
+# Transpose the data frame for better readability
+results_df <- as.data.frame(t(results_df))
+colnames(results_df) <- results_df[1, ]  # Set the first row as column names
+results_df <- results_df[-1, ]  # Remove the first row
+
+# Print the results in a clear format
+print(results_df)
